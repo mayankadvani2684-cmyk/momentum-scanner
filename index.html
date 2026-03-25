@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0d1117" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>MomScan — NSE F&O Scanner</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:#0d1117; --bg2:#161b22; --bg3:#21262d; --bg4:#30363d;
+      --border:#30363d; --border2:#21262d;
+      --text:#e6edf3; --text2:#8b949e; --text3:#6e7681;
+      --green:#3fb950; --green-bg:rgba(63,185,80,0.12); --green-dim:#238636;
+      --red:#f85149; --red-bg:rgba(248,81,73,0.12); --red-dim:#da3633;
+      --yellow:#d29922; --yellow-bg:rgba(210,153,34,0.1);
+      --blue:#58a6ff; --blue-bg:rgba(88,166,255,0.1);
+      --orange:#f0883e; --orange-bg:rgba(240,136,62,0.1);
+      --purple:#bc8cff; --purple-bg:rgba(188,140,255,0.1);
+      --accent:#1f6feb;
+      --font-mono:'IBM Plex Mono',monospace;
+      --font-sans:'IBM Plex Sans',sans-serif;
+      --topbar:52px; --subbar:78px;
+      --offset:130px; /* topbar+subbar */
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font-sans);font-size:13px;overflow-x:hidden}
+    ::-webkit-scrollbar{width:4px;height:4px}
+    ::-webkit-scrollbar-track{background:var(--bg2)}
+    ::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:2px}
+    button{font-family:var(--font-sans);cursor:pointer}
+    input{font-family:var(--font-sans)}
+
+    /* ── TOPBAR ── */
+    #topbar{position:fixed;top:0;left:0;right:0;height:var(--topbar);background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:12px;z-index:300}
+    .logo{font-family:var(--font-mono);font-weight:700;font-size:14px;color:var(--text);display:flex;align-items:center;gap:8px;white-space:nowrap}
+    .live-dot{width:8px;height:8px;border-radius:50%;background:var(--bg4);transition:background .3s}
+    .live-dot.on{background:var(--green);animation:pulse-dot 1.4s ease infinite}
+    @keyframes pulse-dot{0%,100%{box-shadow:0 0 0 0 rgba(63,185,80,.5)}60%{box-shadow:0 0 0 5px rgba(63,185,80,0)}}
+    .scan-info{font-family:var(--font-mono);font-size:11px;color:var(--text3)}
+    .topbar-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+    .tbtn{padding:5px 12px;border-radius:5px;font-size:12px;font-weight:500;border:1px solid var(--border);background:var(--bg3);color:var(--text2);transition:all .15s;white-space:nowrap}
+    .tbtn:hover{background:var(--bg4);color:var(--text)}
+    .tbtn.start{background:var(--green-dim);border-color:var(--green);color:var(--green)}
+    .tbtn.stop{background:var(--red-dim);border-color:var(--red);color:var(--red)}
+    .tbtn.on{background:var(--accent);border-color:var(--accent);color:#fff}
+
+    /* ── SUBBAR ── */
+    #subbar{position:fixed;top:var(--topbar);left:0;right:0;background:var(--bg2);border-bottom:1px solid var(--border);z-index:290;display:flex;flex-direction:column}
+    .cat-row{display:flex;overflow-x:auto;padding:0 16px;gap:0;border-bottom:1px solid var(--border2)}
+    .cat-row::-webkit-scrollbar{display:none}
+    .cat-tab{padding:8px 14px;font-size:12px;font-weight:500;color:var(--text3);border:none;background:transparent;white-space:nowrap;border-bottom:2px solid transparent;transition:all .15s;cursor:pointer}
+    .cat-tab:hover{color:var(--text)}
+    .cat-tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+    .cat-tab .cnt{background:var(--bg3);border-radius:10px;padding:1px 5px;font-size:10px;margin-left:4px;color:var(--text3)}
+    .sort-row{display:flex;align-items:center;padding:5px 16px;gap:6px;overflow-x:auto}
+    .sort-row::-webkit-scrollbar{display:none}
+    .sort-lbl{font-size:11px;color:var(--text3);white-space:nowrap;margin-right:2px}
+    .sbtn{padding:3px 10px;border-radius:4px;font-size:11px;font-family:var(--font-mono);border:1px solid var(--border);background:transparent;color:var(--text3);white-space:nowrap;transition:all .15s;cursor:pointer;display:flex;align-items:center;gap:4px}
+    .sbtn:hover{color:var(--text)}
+    .sbtn.active{background:var(--bg3);color:var(--blue);border-color:var(--blue)}
+    .sbtn .arrow{font-size:10px;color:var(--blue);display:none}
+    .sbtn.active .arrow{display:inline}
+    .search-wrap{margin-left:auto;display:flex;align-items:center;gap:5px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:4px 10px;min-width:150px}
+    .search-wrap input{background:transparent;border:none;outline:none;color:var(--text);font-size:12px;width:100%}
+    .search-wrap input::placeholder{color:var(--text3)}
+
+    /* ── MAIN ── */
+    #main{margin-top:var(--offset);padding-bottom:200px}
+
+    /* ── SECTION HEADER — always above first row, not sticky ── */
+    .sec-hdr{display:flex;align-items:center;gap:10px;padding:14px 16px 8px;background:var(--bg);border-bottom:1px solid var(--border2)}
+    .sec-title{font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.08em;text-transform:uppercase}
+    .sec-cnt{font-size:11px;color:var(--text3);font-family:var(--font-mono)}
+
+    /* ── TABLE ── */
+    .tbl-wrap{overflow-x:auto}
+    table{width:100%;border-collapse:collapse;min-width:900px}
+    thead th{padding:7px 12px;font-size:10px;font-weight:600;color:var(--text3);text-align:right;white-space:nowrap;border-bottom:1px solid var(--border);background:var(--bg2);letter-spacing:.05em;text-transform:uppercase;cursor:pointer;user-select:none}
+    thead th:first-child{text-align:left;padding-left:16px;cursor:default}
+    thead th:last-child{padding-right:16px;cursor:default}
+    thead th.sortable:hover{color:var(--text)}
+    thead th.sort-on{color:var(--blue)}
+    tbody tr{border-bottom:1px solid var(--border2);cursor:pointer;transition:background .1s}
+    tbody tr:hover{background:var(--bg2)}
+    tbody tr.expanded{background:var(--bg2)}
+    tbody td{padding:0 12px;height:48px;text-align:right;font-family:var(--font-mono);font-size:12px;white-space:nowrap;vertical-align:middle}
+    tbody td:first-child{text-align:left;padding-left:16px;font-family:var(--font-sans)}
+    tbody td:last-child{padding-right:16px}
+    .sym{font-weight:700;font-size:13px;color:var(--text)}
+    .sym-name{font-size:10px;color:var(--text3);font-family:var(--font-sans);font-weight:400;margin-top:1px}
+    .up{color:var(--green)}
+    .dn{color:var(--red)}
+    .neu{color:var(--text2)}
+    .ltp-val{font-weight:600;font-size:13px}
+    .pill{display:inline-flex;align-items:center;padding:2px 7px;border-radius:3px;font-size:11px;font-weight:500}
+    .pill.up{background:var(--green-bg);color:var(--green)}
+    .pill.dn{background:var(--red-bg);color:var(--red)}
+    .pill.neu{background:var(--bg3);color:var(--text3)}
+    .pill.na{background:transparent;color:var(--text3);font-size:10px}
+    .vol-wrap{display:flex;align-items:center;gap:6px;justify-content:flex-end}
+    .vol-bar{width:48px;height:4px;background:var(--bg3);border-radius:2px;overflow:hidden}
+    .vol-fill{height:100%;border-radius:2px;transition:width .4s}
+    .sig-badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:3px;font-size:10px;font-weight:700;letter-spacing:.04em;border:1px solid}
+    .sig-spike{background:var(--yellow-bg);color:var(--yellow);border-color:rgba(210,153,34,.3)}
+    .sig-surge{background:var(--blue-bg);color:var(--blue);border-color:rgba(88,166,255,.3)}
+    .sig-breakout{background:var(--green-bg);color:var(--green);border-color:rgba(63,185,80,.3)}
+    .sig-oi{background:var(--red-bg);color:var(--red);border-color:rgba(248,81,73,.3)}
+    .act-btn{padding:4px 10px;border-radius:4px;font-size:11px;border:1px solid var(--border);background:var(--bg3);color:var(--text2);transition:all .15s}
+    .act-btn:hover{background:var(--bg4);color:var(--text)}
+
+    /* ── DETAIL ROW ── */
+    .detail-tr td{padding:0!important;height:auto!important;border-bottom:1px solid var(--border)!important}
+    .detail-panel{background:var(--bg2);display:none;padding:16px}
+    .detail-panel.open{display:block}
+    .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    @media(min-width:900px){.detail-grid{grid-template-columns:1fr 1fr 1fr}}
+
+    /* Contracts section */
+    .contracts-title{font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+    .contracts-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin-bottom:16px}
+    .contract-card{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px 12px;cursor:pointer;transition:border-color .15s}
+    .contract-card:hover{border-color:var(--blue)}
+    .cc-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+    .cc-strike{font-family:var(--font-mono);font-weight:700;font-size:13px;color:var(--text)}
+    .cc-type{font-size:10px;font-weight:700;padding:2px 6px;border-radius:3px}
+    .cc-ce{background:var(--green-bg);color:var(--green)}
+    .cc-pe{background:var(--red-bg);color:var(--red)}
+    .cc-row{display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px}
+    .cc-label{color:var(--text3)}
+    .cc-val{font-family:var(--font-mono);color:var(--text2)}
+    .cc-ltp{font-family:var(--font-mono);font-size:14px;font-weight:700}
+    .cc-chg{font-size:11px;font-family:var(--font-mono)}
+
+    /* Order form inside detail */
+    .order-title{font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px}
+    .order-form{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+    .ofield{display:flex;flex-direction:column;gap:3px}
+    .ofield label{font-size:10px;color:var(--text3);letter-spacing:.05em;text-transform:uppercase}
+    .ofield input{background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:5px 8px;font-size:12px;font-family:var(--font-mono);outline:none;width:130px}
+    .ofield input:focus{border-color:var(--blue)}
+    .ofield input.warn{border-color:var(--yellow)}
+    .otype{display:flex;gap:4px}
+    .otype-btn{padding:5px 14px;border-radius:4px;border:1px solid var(--border);background:transparent;font-size:12px;font-weight:700;font-family:var(--font-mono);color:var(--text3);transition:all .15s;cursor:pointer}
+    .otype-btn.ce{background:var(--green-bg);border-color:var(--green);color:var(--green)}
+    .otype-btn.pe{background:var(--red-bg);border-color:var(--red);color:var(--red)}
+    .obuy{padding:6px 20px;border-radius:4px;border:1px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:700;font-family:var(--font-mono);cursor:pointer;transition:all .15s}
+    .obuy:hover{background:var(--green-dim);color:#fff}
+    .osell{padding:6px 20px;border-radius:4px;border:1px solid var(--red);background:var(--red-bg);color:var(--red);font-size:12px;font-weight:700;font-family:var(--font-mono);cursor:pointer;transition:all .15s}
+    .osell:hover{background:var(--red-dim);color:#fff}
+    .ostatus{font-size:11px;font-family:var(--font-mono);padding:5px 10px;border-radius:4px;margin-top:8px;display:none}
+    .ostatus.ok{display:block;background:var(--green-bg);color:var(--green);border:1px solid rgba(63,185,80,.3)}
+    .ostatus.err{display:block;background:var(--red-bg);color:var(--red);border:1px solid rgba(248,81,73,.3)}
+    .ostatus.loading{display:block;background:var(--bg3);color:var(--text3);border:1px solid var(--border)}
+    .secid-hint{font-size:10px;color:var(--text3);margin-top:6px}
+
+    /* ── ALERTS PANEL ── */
+    #alerts-panel{position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-top:1px solid var(--border);z-index:200;transition:height .2s ease}
+    #alerts-panel.collapsed{height:32px}
+    #alerts-panel.expanded{height:220px}
+    .ap-header{height:32px;display:flex;align-items:center;padding:0 12px;gap:10px;cursor:pointer;border-bottom:1px solid var(--border2);user-select:none}
+    .ap-label{font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.08em;text-transform:uppercase}
+    .ap-count{font-size:10px;font-family:var(--font-mono);background:var(--red-bg);color:var(--red);padding:1px 6px;border-radius:10px}
+    .ap-toggle{margin-left:auto;font-size:11px;color:var(--text3)}
+    .ap-notif-toggle{display:flex;align-items:center;gap:6px;margin-left:8px}
+    .ap-notif-toggle span{font-size:10px;color:var(--text3)}
+    .toggle-switch{position:relative;width:28px;height:16px;cursor:pointer}
+    .toggle-switch input{opacity:0;width:0;height:0}
+    .toggle-track{position:absolute;inset:0;background:var(--bg4);border-radius:8px;transition:.2s}
+    .toggle-track::before{content:'';position:absolute;width:12px;height:12px;left:2px;top:2px;background:var(--text3);border-radius:50%;transition:.2s}
+    input:checked+.toggle-track{background:var(--green)}
+    input:checked+.toggle-track::before{transform:translateX(12px);background:#fff}
+    .ap-body{height:calc(100% - 32px);overflow-y:auto;padding:8px 12px;display:flex;flex-direction:column;gap:4px}
+    .ap-item{display:flex;align-items:center;gap:10px;padding:5px 8px;border-radius:4px;background:var(--bg3);font-size:12px;flex-shrink:0}
+    .ap-sym{font-weight:700;font-family:var(--font-mono);color:var(--text);min-width:90px}
+    .ap-detail{color:var(--text3);font-size:11px;flex:1}
+    .ap-chg{font-family:var(--font-mono);font-size:11px;min-width:60px;text-align:right}
+    .ap-time{font-family:var(--font-mono);font-size:10px;color:var(--text3);min-width:55px;text-align:right}
+    .ap-empty{color:var(--text3);font-size:12px;padding:20px;text-align:center}
+
+    /* ── CONFIG PANEL ── */
+    #cfg-panel{position:fixed;top:var(--topbar);right:0;width:300px;height:calc(100vh - var(--topbar));background:var(--bg2);border-left:1px solid var(--border);z-index:280;transform:translateX(100%);transition:transform .2s;overflow-y:auto;padding:16px}
+    #cfg-panel.open{transform:translateX(0)}
+    .cfg-section{margin-bottom:20px}
+    .cfg-title{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border2)}
+    .cfg-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+    .cfg-row span{font-size:12px;color:var(--text2)}
+    .cfg-val{font-family:var(--font-mono);font-size:12px;color:var(--yellow)!important}
+    .cfg-row input[type=range]{width:110px;accent-color:var(--blue)}
+    .cfg-input{background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:6px 10px;font-size:12px;font-family:var(--font-mono);width:100%;outline:none;margin-bottom:6px}
+    .cfg-input:focus{border-color:var(--blue)}
+    .mode-btns{display:flex;gap:6px;margin-bottom:10px}
+    .mode-btn{flex:1;padding:6px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--text3);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s}
+    .mode-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+  </style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div id="topbar">
+  <div class="logo"><div class="live-dot" id="live-dot"></div>MOMSCAN</div>
+  <div class="scan-info" id="scan-info">IDLE — Enter credentials in Settings and press Start</div>
+  <div class="topbar-right">
+    <button class="tbtn" onclick="toggleCfg()">⚙ Settings</button>
+    <button class="tbtn start" id="start-btn" onclick="toggleLive()">▶ Start</button>
+  </div>
+</div>
+
+<!-- SUBBAR -->
+<div id="subbar">
+  <div class="cat-row" id="cat-row"></div>
+  <div class="sort-row">
+    <span class="sort-lbl">SORT</span>
+    <button class="sbtn active" id="sb-chg1d" onclick="setSort('chg1d')">Day Chg<span class="arrow" id="ar-chg1d">↓</span></button>
+    <button class="sbtn" id="sb-chg5m" onclick="setSort('chg5m')">5m Chg<span class="arrow" id="ar-chg5m">↓</span></button>
+    <button class="sbtn" id="sb-chg10m" onclick="setSort('chg10m')">10m Chg<span class="arrow" id="ar-chg10m">↓</span></button>
+    <button class="sbtn" id="sb-chg1h" onclick="setSort('chg1h')">1h Chg<span class="arrow" id="ar-chg1h">↓</span></button>
+    <button class="sbtn" id="sb-vol" onclick="setSort('vol')">Volume<span class="arrow" id="ar-vol">↓</span></button>
+    <button class="sbtn" id="sb-oi" onclick="setSort('oi')">OI Chg<span class="arrow" id="ar-oi">↓</span></button>
+    <div class="search-wrap"><span style="color:var(--text3)">⌕</span><input id="search-inp" placeholder="Search symbol…" oninput="renderAll()"></div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main"></div>
+
+<!-- CONFIG -->
+<div id="cfg-panel">
+  <div class="cfg-section">
+    <div class="cfg-title">Data Source</div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:10px">All data is fetched live from Dhan API. Enter your credentials below.</div>
+    <div id="dhan-creds">
+      <input class="cfg-input" id="cfg-cid" placeholder="Dhan Client ID">
+      <input class="cfg-input" id="cfg-tok" placeholder="Access Token (from Dhan app)">
+      <div style="display:flex;gap:8px;margin-top:6px">
+        <button class="mode-btn active" style="flex:1" onclick="saveDhanCreds()">💾 Save Credentials</button>
+        <button class="mode-btn" style="flex:1;color:var(--red);border-color:var(--red)" onclick="clearDhanCreds()">✕ Clear</button>
+      </div>
+      <button class="mode-btn" style="width:100%;margin-top:6px;color:var(--cyan,#39d353);border-color:var(--cyan,#39d353)" onclick="testConnection()">⚡ Test Connection</button>
+      <div id="creds-status" style="font-size:11px;margin-top:6px;color:var(--text3)"></div>
+      <div style="font-size:10px;color:var(--text3);margin-top:8px;line-height:1.6">
+        📱 Dhan App → My Profile → API → Generate Access Token<br>
+        ⏱ Token expires every 24h — update it here each morning<br>
+        🔒 Stored in your browser's localStorage (never sent to any server except Dhan)
+      </div>
+    </div>
+  </div>
+  <div class="cfg-section">
+    <div class="cfg-title">Signal Thresholds</div>
+    <div class="cfg-row"><span>Price Spike %</span><span class="cfg-val" id="v-spike">2.0</span></div>
+    <div class="cfg-row"><input type="range" min=".5" max="10" step=".5" value="2" oninput="thr.SPIKE=+this.value;document.getElementById('v-spike').textContent=this.value"></div>
+    <div class="cfg-row"><span>Vol Surge ×</span><span class="cfg-val" id="v-vol">5</span></div>
+    <div class="cfg-row"><input type="range" min="2" max="20" step=".5" value="5" oninput="thr.VOL=+this.value;document.getElementById('v-vol').textContent=this.value"></div>
+    <div class="cfg-row"><span>OI Diverge %</span><span class="cfg-val" id="v-oi">3</span></div>
+    <div class="cfg-row"><input type="range" min="1" max="10" step=".5" value="3" oninput="thr.OI=+this.value;document.getElementById('v-oi').textContent=this.value"></div>
+  </div>
+  <div class="cfg-section">
+    <div class="cfg-title">Scan Interval</div>
+    <div class="cfg-row"><span>Seconds</span><span class="cfg-val" id="v-int">30</span></div>
+    <div class="cfg-row"><input type="range" min="10" max="120" step="5" value="30" oninput="INTERVAL=+this.value*1000;document.getElementById('v-int').textContent=this.value"></div>
+  </div>
+  <div class="cfg-section">
+    <div class="cfg-title">Alerts & Notifications</div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:8px">Browser notifications fire when a signal is detected. Toggle below or use the switch in the alerts panel.</div>
+    <button class="mode-btn" id="notif-btn" onclick="enableNotif()" style="width:100%;margin-bottom:6px">Enable Browser Notifications</button>
+    <div style="font-size:10px;color:var(--text3)">Alerts panel shows last 200 signals. Expand it by clicking the bar at the bottom of the screen.</div>
+  </div>
+</div>
+
+<!-- ALERTS PANEL -->
+<div id="alerts-panel" class="collapsed">
+  <div class="ap-header" onclick="toggleAlerts()">
+    <span class="ap-label">Signals</span>
+    <span class="ap-count" id="ap-count">0</span>
+    <div class="ap-notif-toggle" onclick="event.stopPropagation()">
+      <span>Notify</span>
+      <label class="toggle-switch"><input type="checkbox" id="notif-chk" onchange="notifOn=this.checked;if(notifOn)enableNotif()"><div class="toggle-track"></div></label>
+    </div>
+    <span class="ap-toggle" id="ap-toggle">▲ expand</span>
+  </div>
+  <div class="ap-body" id="ap-body">
+    <div class="ap-empty">No signals yet — press Start to begin scanning</div>
+  </div>
+</div>
+
+<script>
+// ================================================================
+// INSTRUMENTS
+// ================================================================
+const INSTRUMENTS = [
+  // INDICES
+  {symbol:"NIFTY50",    name:"Nifty 50",             cat:"Indices",     secId:"13",     lotSize:50},
+  {symbol:"BANKNIFTY",  name:"Bank Nifty",            cat:"Indices",     secId:"25",     lotSize:15},
+  {symbol:"MIDCPNIFTY", name:"Nifty Midcap 50",       cat:"Indices",     secId:"26000",  lotSize:75},
+  {symbol:"FINNIFTY",   name:"Nifty Fin Service",     cat:"Indices",     secId:"26037",  lotSize:40},
+  {symbol:"NIFTYNXT50", name:"Nifty Next 50",         cat:"Indices",     secId:"26013",  lotSize:25},
+  {symbol:"NIFTY100",   name:"Nifty 100",             cat:"Indices",     secId:"26012",  lotSize:40},
+  {symbol:"NIFTYIT",    name:"Nifty IT",              cat:"Indices",     secId:"26008",  lotSize:50},
+  {symbol:"NIFTYPHRMA", name:"Nifty Pharma",          cat:"Indices",     secId:"26014",  lotSize:75},
+  {symbol:"NIFTYAUTO",  name:"Nifty Auto",            cat:"Indices",     secId:"26029",  lotSize:100},
+  {symbol:"NIFTYMETAL", name:"Nifty Metal",           cat:"Indices",     secId:"26015",  lotSize:100},
+  {symbol:"NIFTYFMCG",  name:"Nifty FMCG",           cat:"Indices",     secId:"26035",  lotSize:40},
+  {symbol:"NIFTYENERGY",name:"Nifty Energy",          cat:"Indices",     secId:"26009",  lotSize:100},
+  {symbol:"NIFTYREALTY",name:"Nifty Realty",          cat:"Indices",     secId:"26018",  lotSize:900},
+  {symbol:"NIFTYPSE",   name:"Nifty PSE",             cat:"Indices",     secId:"26006",  lotSize:100},
+  {symbol:"NIFTYINFRA", name:"Nifty Infra",           cat:"Indices",     secId:"26010",  lotSize:150},
+
+  // NIFTY 50 STOCKS
+  {symbol:"RELIANCE",   name:"Reliance Industries",   cat:"Nifty 50",    secId:"2885",   lotSize:250},
+  {symbol:"HDFCBANK",   name:"HDFC Bank",             cat:"Nifty 50",    secId:"1333",   lotSize:550},
+  {symbol:"ICICIBANK",  name:"ICICI Bank",            cat:"Nifty 50",    secId:"4963",   lotSize:700},
+  {symbol:"INFY",       name:"Infosys",               cat:"Nifty 50",    secId:"1594",   lotSize:400},
+  {symbol:"TCS",        name:"TCS",                   cat:"Nifty 50",    secId:"11536",  lotSize:175},
+  {symbol:"BHARTIARTL", name:"Bharti Airtel",         cat:"Nifty 50",    secId:"10604",  lotSize:475},
+  {symbol:"SBIN",       name:"SBI",                   cat:"Nifty 50",    secId:"3045",   lotSize:1500},
+  {symbol:"HINDUNILVR", name:"HUL",                   cat:"Nifty 50",    secId:"1394",   lotSize:300},
+  {symbol:"ITC",        name:"ITC",                   cat:"Nifty 50",    secId:"1660",   lotSize:3200},
+  {symbol:"LT",         name:"L&T",                   cat:"Nifty 50",    secId:"11483",  lotSize:175},
+  {symbol:"KOTAKBANK",  name:"Kotak Bank",            cat:"Nifty 50",    secId:"1922",   lotSize:400},
+  {symbol:"AXISBANK",   name:"Axis Bank",             cat:"Nifty 50",    secId:"5900",   lotSize:625},
+  {symbol:"ASIANPAINT", name:"Asian Paints",          cat:"Nifty 50",    secId:"236",    lotSize:200},
+  {symbol:"MARUTI",     name:"Maruti Suzuki",         cat:"Nifty 50",    secId:"10999",  lotSize:100},
+  {symbol:"SUNPHARMA",  name:"Sun Pharma",            cat:"Nifty 50",    secId:"3351",   lotSize:350},
+  {symbol:"TATAMOTORS", name:"Tata Motors",           cat:"Nifty 50",    secId:"3432",   lotSize:1425},
+  {symbol:"WIPRO",      name:"Wipro",                 cat:"Nifty 50",    secId:"3787",   lotSize:1500},
+  {symbol:"HCLTECH",    name:"HCL Tech",              cat:"Nifty 50",    secId:"7229",   lotSize:700},
+  {symbol:"BAJFINANCE", name:"Bajaj Finance",         cat:"Nifty 50",    secId:"317",    lotSize:125},
+  {symbol:"BAJAJFINSV", name:"Bajaj Finserv",         cat:"Nifty 50",    secId:"16675",  lotSize:500},
+  {symbol:"NTPC",       name:"NTPC",                  cat:"Nifty 50",    secId:"11630",  lotSize:3000},
+  {symbol:"POWERGRID",  name:"Power Grid",            cat:"Nifty 50",    secId:"14977",  lotSize:2700},
+  {symbol:"ONGC",       name:"ONGC",                  cat:"Nifty 50",    secId:"2475",   lotSize:1925},
+  {symbol:"COALINDIA",  name:"Coal India",            cat:"Nifty 50",    secId:"20374",  lotSize:2800},
+  {symbol:"ADANIPORTS", name:"Adani Ports",           cat:"Nifty 50",    secId:"15083",  lotSize:625},
+  {symbol:"ADANIENT",   name:"Adani Enterprises",     cat:"Nifty 50",    secId:"326",    lotSize:250},
+  {symbol:"JSWSTEEL",   name:"JSW Steel",             cat:"Nifty 50",    secId:"11723",  lotSize:600},
+  {symbol:"TATASTEEL",  name:"Tata Steel",            cat:"Nifty 50",    secId:"3408",   lotSize:5500},
+  {symbol:"ULTRACEMCO", name:"UltraTech Cement",      cat:"Nifty 50",    secId:"11532",  lotSize:100},
+  {symbol:"TITAN",      name:"Titan Company",         cat:"Nifty 50",    secId:"3506",   lotSize:375},
+  {symbol:"NESTLEIND",  name:"Nestle India",          cat:"Nifty 50",    secId:"17963",  lotSize:50},
+  {symbol:"TECHM",      name:"Tech Mahindra",         cat:"Nifty 50",    secId:"13538",  lotSize:600},
+  {symbol:"DRREDDY",    name:"Dr Reddy's",            cat:"Nifty 50",    secId:"881",    lotSize:125},
+  {symbol:"CIPLA",      name:"Cipla",                 cat:"Nifty 50",    secId:"694",    lotSize:650},
+  {symbol:"INDUSINDBK", name:"IndusInd Bank",         cat:"Nifty 50",    secId:"5258",   lotSize:500},
+  {symbol:"HINDALCO",   name:"Hindalco",              cat:"Nifty 50",    secId:"1363",   lotSize:1400},
+  {symbol:"DIVISLAB",   name:"Divi's Laboratories",   cat:"Nifty 50",    secId:"10940",  lotSize:200},
+  {symbol:"EICHERMOT",  name:"Eicher Motors",         cat:"Nifty 50",    secId:"910",    lotSize:175},
+  {symbol:"BPCL",       name:"BPCL",                  cat:"Nifty 50",    secId:"526",    lotSize:1800},
+  {symbol:"GRASIM",     name:"Grasim Industries",     cat:"Nifty 50",    secId:"1232",   lotSize:475},
+  {symbol:"TATACONSUM", name:"Tata Consumer",         cat:"Nifty 50",    secId:"3486",   lotSize:750},
+  {symbol:"HEROMOTOCO", name:"Hero MotoCorp",         cat:"Nifty 50",    secId:"1348",   lotSize:150},
+  {symbol:"APOLLOHOSP", name:"Apollo Hospitals",      cat:"Nifty 50",    secId:"157",    lotSize:125},
+  {symbol:"SBILIFE",    name:"SBI Life Insurance",    cat:"Nifty 50",    secId:"21808",  lotSize:750},
+  {symbol:"HDFCLIFE",   name:"HDFC Life Insurance",   cat:"Nifty 50",    secId:"467",    lotSize:1100},
+  {symbol:"BRITANNIA",  name:"Britannia Industries",  cat:"Nifty 50",    secId:"547",    lotSize:200},
+  {symbol:"SHREECEM",   name:"Shree Cement",          cat:"Nifty 50",    secId:"3413",   lotSize:25},
+
+  // NIFTY MIDCAP
+  {symbol:"ABCAPITAL",  name:"Aditya Birla Capital",  cat:"Nifty Midcap",secId:"542",    lotSize:4000},
+  {symbol:"ASHOKLEY",   name:"Ashok Leyland",         cat:"Nifty Midcap",secId:"220",    lotSize:5000},
+  {symbol:"AUBANK",     name:"AU Small Finance Bank",  cat:"Nifty Midcap",secId:"1023",   lotSize:1000},
+  {symbol:"BALKRISIND", name:"Balkrishna Industries",  cat:"Nifty Midcap",secId:"335",    lotSize:400},
+  {symbol:"BANDHANBNK", name:"Bandhan Bank",           cat:"Nifty Midcap",secId:"20817",  lotSize:5000},
+  {symbol:"CHOLAFIN",   name:"Cholamandalam Inv",      cat:"Nifty Midcap",secId:"685",    lotSize:1250},
+  {symbol:"COFORGE",    name:"Coforge",               cat:"Nifty Midcap",secId:"20242",  lotSize:150},
+  {symbol:"CONCOR",     name:"Container Corp",         cat:"Nifty Midcap",secId:"4749",   lotSize:2375},
+  {symbol:"CUMMINSIND", name:"Cummins India",          cat:"Nifty Midcap",secId:"775",    lotSize:600},
+  {symbol:"FEDERALBNK", name:"Federal Bank",           cat:"Nifty Midcap",secId:"1023",   lotSize:5000},
+  {symbol:"GODREJCP",   name:"Godrej Consumer Prod",   cat:"Nifty Midcap",secId:"1099",   lotSize:500},
+  {symbol:"GODREJPROP", name:"Godrej Properties",      cat:"Nifty Midcap",secId:"17875",  lotSize:425},
+  {symbol:"HINDPETRO",  name:"HPCL",                   cat:"Nifty Midcap",secId:"1406",   lotSize:2700},
+  {symbol:"IDFCFIRSTB", name:"IDFC First Bank",        cat:"Nifty Midcap",secId:"20286",  lotSize:10000},
+  {symbol:"INDHOTEL",   name:"Indian Hotels",          cat:"Nifty Midcap",secId:"1500",   lotSize:2800},
+  {symbol:"INDUSTOWER", name:"Indus Towers",           cat:"Nifty Midcap",secId:"20566",  lotSize:2800},
+  {symbol:"KPITTECH",   name:"KPIT Technologies",      cat:"Nifty Midcap",secId:"541677", lotSize:1000},
+  {symbol:"LICHSGFIN",  name:"LIC Housing Finance",    cat:"Nifty Midcap",secId:"1875",   lotSize:2000},
+  {symbol:"LUPIN",      name:"Lupin",                  cat:"Nifty Midcap",secId:"10440",  lotSize:425},
+  {symbol:"MFSL",       name:"Max Financial Services", cat:"Nifty Midcap",secId:"2142",   lotSize:1500},
+  {symbol:"MPHASIS",    name:"Mphasis",                cat:"Nifty Midcap",secId:"4503",   lotSize:375},
+  {symbol:"NMDC",       name:"NMDC",                   cat:"Nifty Midcap",secId:"2269",   lotSize:7500},
+  {symbol:"PAGEIND",    name:"Page Industries",        cat:"Nifty Midcap",secId:"14413",  lotSize:15},
+  {symbol:"PERSISTENT", name:"Persistent Systems",     cat:"Nifty Midcap",secId:"18365",  lotSize:250},
+  {symbol:"PIIND",      name:"PI Industries",          cat:"Nifty Midcap",secId:"2252",   lotSize:300},
+  {symbol:"TRENT",      name:"Trent",                  cat:"Nifty Midcap",secId:"3502",   lotSize:375},
+  {symbol:"VOLTAS",     name:"Voltas",                 cat:"Nifty Midcap",secId:"3829",   lotSize:750},
+  {symbol:"GMRAIRPORT", name:"GMR Airports",           cat:"Nifty Midcap",secId:"532754", lotSize:7500},
+  {symbol:"ABFRL",      name:"Aditya Birla Fashion",   cat:"Nifty Midcap",secId:"535",    lotSize:3200},
+  {symbol:"M&MFIN",     name:"M&M Financial",          cat:"Nifty Midcap",secId:"2031",   lotSize:3000},
+
+  // COMMODITIES
+  {symbol:"GOLD",       name:"Gold (MCX)",             cat:"Commodities", secId:"MCX-GOLD",   lotSize:100, isCom:true},
+  {symbol:"SILVER",     name:"Silver (MCX)",           cat:"Commodities", secId:"MCX-SILVER", lotSize:30000, isCom:true},
+  {symbol:"CRUDEOIL",   name:"Crude Oil (MCX)",        cat:"Commodities", secId:"MCX-CRUDE",  lotSize:100,  isCom:true},
+  {symbol:"NATURALGAS", name:"Natural Gas (MCX)",      cat:"Commodities", secId:"MCX-NG",     lotSize:1250,   isCom:true},
+];
+
+// Ordered cats
+const CATS = ["All","Indices","Nifty 50","Nifty Midcap","Commodities"];
+
+// ================================================================
+// STATE
+// ================================================================
+let quotes={}, priceHist={}, optionChains={}, alerts=[], alertId=0;
+let isLive=false, scanCount=0, lastScan=null, lastError=null;
+let scanTimer=null, cdTimer=null, countdown=30, INTERVAL=30000;
+let currentCat="All", sortKey="chg1d", sortDir=-1;
+let notifOn=false, expandedRow=null, alertsOpen=false;
+let thr={SPIKE:2,VOL:5,OI:3};
+
+// ================================================================
+// CREDENTIALS — from localStorage only
+// ================================================================
+function getCreds(){
+  return{
+    clientId: localStorage.getItem("dhan_client_id")||"",
+    token:    localStorage.getItem("dhan_access_token")||""
+  };
+}
+
+function hasValidCreds(){
+  const {clientId,token}=getCreds();
+  return !!(clientId&&token);
+}
+
+// ================================================================
+// PRICE HISTORY — for 5m / 10m / 1h change calculation
+// ================================================================
+function recordPrice(sym,ltp){
+  if(!priceHist[sym])priceHist[sym]=[];
+  priceHist[sym].push({ltp,ts:Date.now()});
+  const cut=Date.now()-7200000; // keep 2h
+  priceHist[sym]=priceHist[sym].filter(p=>p.ts>cut);
+}
+
+function priceAt(sym,msAgo){
+  const h=priceHist[sym];
+  if(!h||!h.length)return null;
+  const target=Date.now()-msAgo;
+  let best=null;
+  for(const p of h){if(p.ts<=target)best=p;else break;}
+  return best?best.ltp:null; // null if we don't have enough history yet
+}
+
+function pct(now,then){
+  if(!then||then===0)return null;
+  return(now-then)/then*100;
+}
+
+// ================================================================
+// DHAN API — REAL CALLS
+// ================================================================
+
+// Build the segment map Dhan expects: { "NSE_EQ": [...ids], "IDX_I": [...ids], "MCX_COMM": [...ids] }
+function buildSecurityMap(){
+  const map={};
+  for(const inst of INSTRUMENTS){
+    const seg=inst.isCom?"MCX_COMM":inst.cat==="Indices"?"IDX_I":"NSE_EQ";
+    if(!map[seg])map[seg]=[];
+    map[seg].push(inst.secId);
+  }
+  return map;
+}
+
+async function fetchLTP(){
+  const {clientId,token}=getCreds();
+  if(!clientId||!token) return null;
+
+  const secMap=buildSecurityMap();
+  try{
+    const res=await fetch("/api/marketfeed",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({clientId,token,...secMap})
+    });
+    if(!res.ok){
+      const err=await res.json().catch(()=>({}));
+      lastError=`Dhan API error ${res.status}: ${err.errorMessage||err.message||res.statusText}`;
+      return null;
+    }
+    lastError=null;
+    return await res.json();
+  }catch(e){
+    lastError=`Network error: ${e.message}`;
+    return null;
+  }
+}
+
+async function fetchOptionChain(inst){
+  const {clientId,token}=getCreds();
+  if(!clientId||!token)return null;
+  try{
+    const res=await fetch("/api/optionchain",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        clientId, token,
+        UnderlyingScrip: inst.secId,
+        UnderlyingSeg:   inst.cat==="Indices"?"IDX_I":inst.isCom?"MCX_COMM":"NSE_EQ",
+        ExpiryDate:      ""
+      })
+    });
+    if(!res.ok)return null;
+    return await res.json();
+  }catch(e){return null;}
+}
+
+// Parse Dhan LTP response into our quotes map
+function parseLTPResponse(data){
+  if(!data||!data.data)return;
+  // Response shape: { data: { NSE_EQ: { "secId": { last_price, volume, oi, ... } } } }
+  for(const [seg,secMap] of Object.entries(data.data)){
+    for(const [secId,d] of Object.entries(secMap)){
+      // Find instrument by secId
+      const inst=INSTRUMENTS.find(i=>i.secId===secId);
+      if(!inst)continue;
+
+      const prev=quotes[inst.symbol];
+      const ltp=d.last_price||0;
+      const prevClose=d.prev_close||prev?.prevClose||ltp;
+      const change=prevClose?parseFloat(((ltp-prevClose)/prevClose*100).toFixed(2)):0;
+      const volume=d.volume||0;
+      const avgVol=prev?.avgVol||(volume||1); // seed avgVol on first tick
+      const high52=d.fifty_two_week_high||prev?.high52||ltp;
+      const oi=d.oi||0;
+      const prevOi=prev?.oi||oi;
+      const oiChange=prevOi?parseFloat(((oi-prevOi)/prevOi*100).toFixed(2)):0;
+
+      quotes[inst.symbol]={
+        symbol:inst.symbol, name:inst.name, cat:inst.cat,
+        ltp, prevClose, change, volume,
+        avgVol: prev?.avgVol||volume||1,
+        high52, oi, oiChange,
+        lotSize:inst.lotSize, isCom:inst.isCom||false,
+        lastUpdated:Date.now()
+      };
+    }
+  }
+}
+
+// ================================================================
+// SIGNALS — based on real data only, no estimates
+// ================================================================
+function signals(q){
+  if(!q||!q.ltp)return[];
+  const out=[];
+
+  // Price spike vs 5m ago (only if we have real history)
+  const p5=priceAt(q.symbol,300000);
+  if(p5!==null){
+    const s=Math.abs(pct(q.ltp,p5));
+    if(s>=thr.SPIKE)out.push({type:"SPIKE",label:"PRICE SPIKE",detail:`${s.toFixed(2)}% in 5m`});
+  }
+
+  // Volume surge (only meaningful after 2+ scans)
+  if(q.avgVol&&q.volume){
+    const vm=q.volume/q.avgVol;
+    if(vm>=thr.VOL)out.push({type:"SURGE",label:"VOL SURGE",detail:`${vm.toFixed(1)}x avg`});
+  }
+
+  // Near 52w high (only if Dhan provided the value)
+  if(q.high52&&q.high52>0&&q.ltp>=q.high52*0.999)
+    out.push({type:"BREAKOUT",label:"BREAKOUT",detail:`Near 52W High ₹${q.high52.toFixed(0)}`});
+
+  // OI divergence
+  if(q.oiChange!==undefined){
+    if(q.change>thr.OI&&q.oiChange<-2)out.push({type:"OI",label:"OI DIVERGE",detail:"Long Unwinding"});
+    else if(q.change<-thr.OI&&q.oiChange>2)out.push({type:"OI",label:"OI DIVERGE",detail:"Short Buildup"});
+  }
+  return out;
+}
+
+// ================================================================
+// SCAN — real data, no mock fallback
+// ================================================================
+async function runScan(){
+  updateTopbar("Fetching…");
+
+  if(!hasValidCreds()){
+    lastError="No credentials — enter your Dhan Client ID and Access Token in Settings";
+    updateTopbar();
+    renderAll();
+    return;
+  }
+
+  const raw=await fetchLTP();
+  if(!raw){
+    updateTopbar();
+    renderAll();
+    return;
+  }
+
+  parseLTPResponse(raw);
+
+  // Record prices for time-based change calc
+  for(const sym of Object.keys(quotes)){
+    if(quotes[sym].ltp)recordPrice(sym,quotes[sym].ltp);
+  }
+
+  // Detect signals
+  for(const sym of Object.keys(quotes)){
+    const q=quotes[sym];
+    signals(q).forEach(sig=>{
+      // Dedupe — don't fire same signal for same symbol within 1 scan interval
+      const recent=alerts.find(a=>a.symbol===sym&&a.sig.type===sig.type&&(Date.now()-a.ts)<INTERVAL+5000);
+      if(recent)return;
+      alerts.unshift({id:++alertId,symbol:sym,name:q.name,ltp:q.ltp,change:q.change,sig,ts:new Date()});
+      if(notifOn&&"Notification"in window&&Notification.permission==="granted")
+        new Notification(`${sym} — ${sig.label}`,{body:sig.detail});
+    });
+  }
+  alerts=alerts.slice(0,200);
+  scanCount++;lastScan=new Date();countdown=Math.floor(INTERVAL/1000);
+  updateTopbar();updateAlertPanel();renderAll();
+}
+
+function updateTopbar(msg){
+  const el=document.getElementById("scan-info");
+  if(msg){el.textContent=msg;return;}
+  if(lastError){el.style.color="var(--red)";el.textContent=lastError;return;}
+  el.style.color="var(--text3)";
+  if(!isLive){el.textContent="IDLE — Enter credentials in Settings and press Start";return;}
+  const ts=lastScan?lastScan.toLocaleTimeString("en-IN",{hour12:false}):"";
+  el.textContent=`${ts} · scan #${scanCount} · next ${countdown}s`;
+}
+
+// ================================================================
+// RENDER
+// ================================================================
+function buildCatTabs(){
+  const el=document.getElementById("cat-row");
+  el.innerHTML=CATS.map(c=>{
+    const cnt=c==="All"?INSTRUMENTS.length:INSTRUMENTS.filter(i=>i.cat===c).length;
+    return`<button class="cat-tab${c===currentCat?" active":""}" onclick="setCat('${c}')">${c}<span class="cnt">${cnt}</span></button>`;
+  }).join("");
+}
+
+function getRows(){
+  const q=document.getElementById("search-inp")?.value.toLowerCase()||"";
+  let list=INSTRUMENTS.filter(inst=>{
+    if(currentCat!=="All"&&inst.cat!==currentCat)return false;
+    if(q&&!inst.symbol.toLowerCase().includes(q)&&!inst.name.toLowerCase().includes(q))return false;
+    return true;
+  }).map(inst=>{
+    const qd=quotes[inst.symbol]||{};
+    const ltp=qd.ltp||0;
+    const p5=priceAt(inst.symbol,300000),p10=priceAt(inst.symbol,600000),p1h=priceAt(inst.symbol,3600000);
+    return{...inst,...qd,chg1d:qd.change||0,chg5m:p5?pct(ltp,p5):null,chg10m:p10?pct(ltp,p10):null,chg1h:p1h?pct(ltp,p1h):null,vol:qd.volume||0,oi:qd.oiChange||0};
+  });
+  const getV=(r,k)=>{const v=r[k];return(v===null||v===undefined)?(sortDir===-1?-Infinity:Infinity):v;};
+  list.sort((a,b)=>sortDir*(getV(b,sortKey)-getV(a,sortKey)));
+  return list;
+}
+
+function pillHtml(val){
+  if(val===null||val===undefined)return`<span class="pill na">—</span>`;
+  const c=val>0?"up":val<0?"dn":"neu";
+  return`<span class="pill ${c}">${val>0?"+":""}${val.toFixed(2)}%</span>`;
+}
+
+function volHtml(vol,avg){
+  if(!vol)return"—";
+  const ratio=avg?vol/avg:1;
+  const pct2=Math.min(ratio/5*100,100);
+  const color=ratio>=thr.VOL?"var(--orange)":"var(--blue)";
+  const k=vol>=1e7?(vol/1e7).toFixed(1)+"Cr":vol>=1e5?(vol/1e5).toFixed(1)+"L":(vol/1000).toFixed(0)+"K";
+  return`<div class="vol-wrap"><span style="color:var(--text2);font-size:11px">${k}</span><div class="vol-bar"><div class="vol-fill" style="width:${pct2}%;background:${color}"></div></div></div>`;
+}
+
+function sigHtml(sym){
+  const q=quotes[sym];if(!q)return"";
+  const s=signals(q);if(!s.length)return"";
+  const cls={SPIKE:"sig-spike",SURGE:"sig-surge",BREAKOUT:"sig-breakout",OI:"sig-oi"}[s[0].type];
+  return`<span class="sig-badge ${cls}">${s[0].label}</span>`;
+}
+
+function renderAll(){
+  const main=document.getElementById("main");
+  const rows=getRows();
+
+  // No credentials state
+  if(!hasValidCreds()){
+    main.innerHTML=`<div style="text-align:center;padding:60px 20px">
+      <div style="font-size:36px;margin-bottom:16px">🔑</div>
+      <div style="font-size:15px;color:var(--text2);margin-bottom:8px">Enter your Dhan credentials to start</div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:20px">Click <strong style="color:var(--text)">⚙ Settings</strong> in the top right → enter Client ID and Access Token → Save</div>
+      <button class="tbtn" onclick="toggleCfg()" style="font-size:13px;padding:8px 20px">Open Settings</button>
+    </div>`;
+    return;
+  }
+
+  // Has creds but no data yet
+  const hasAnyData=Object.keys(quotes).length>0;
+  if(!hasAnyData&&!isLive){
+    main.innerHTML=`<div style="text-align:center;padding:60px 20px">
+      <div style="font-size:36px;margin-bottom:16px">▶</div>
+      <div style="font-size:15px;color:var(--text2);margin-bottom:8px">Ready to scan</div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:20px">Press <strong style="color:var(--green)">▶ Start</strong> to fetch live data from Dhan</div>
+    </div>`;
+    return;
+  }
+
+  if(!rows.length){
+    main.innerHTML=`<div style="text-align:center;padding:60px;color:var(--text3)">No instruments match your search</div>`;
+    return;
+  }
+
+  // Group by category (maintain CATS order)
+  const groups={};
+  CATS.filter(c=>c!=="All").forEach(c=>{groups[c]=[];});
+  rows.forEach(r=>{if(groups[r.cat])groups[r.cat].push(r);});
+
+  let html="";
+  for(const cat of CATS.filter(c=>c!=="All")){
+    const grp=groups[cat];
+    if(!grp||!grp.length)continue;
+
+    // Section header ABOVE the table — not inside it
+    html+=`<div class="sec-hdr"><span class="sec-title">${cat}</span><span class="sec-cnt">${grp.length} instruments</span></div>`;
+    html+=`<div class="tbl-wrap"><table>`;
+    html+=`<thead><tr>
+      <th style="min-width:160px;cursor:default">Symbol</th>
+      <th class="sortable${sortKey==="chg1d"?" sort-on":""}" onclick="setSort('chg1d')">LTP / Day Chg ${sortKey==="chg1d"?(sortDir===-1?"↓":"↑"):""}</th>
+      <th class="sortable${sortKey==="chg5m"?" sort-on":""}" onclick="setSort('chg5m')">5m Chg ${sortKey==="chg5m"?(sortDir===-1?"↓":"↑"):""}</th>
+      <th class="sortable${sortKey==="chg10m"?" sort-on":""}" onclick="setSort('chg10m')">10m Chg ${sortKey==="chg10m"?(sortDir===-1?"↓":"↑"):""}</th>
+      <th class="sortable${sortKey==="chg1h"?" sort-on":""}" onclick="setSort('chg1h')">1h Chg ${sortKey==="chg1h"?(sortDir===-1?"↓":"↑"):""}</th>
+      <th class="sortable${sortKey==="vol"?" sort-on":""}" onclick="setSort('vol')">Volume ${sortKey==="vol"?(sortDir===-1?"↓":"↑"):""}</th>
+      <th class="sortable${sortKey==="oi"?" sort-on":""}" onclick="setSort('oi')">OI Chg ${sortKey==="oi"?(sortDir===-1?"↓":"↑"):""}</th>
+      <th style="cursor:default">Signal</th>
+      <th style="cursor:default">Action</th>
+    </tr></thead><tbody>`;
+
+    grp.forEach(row=>{
+      const ltp=row.ltp||0;
+      const hasData=!!row.ltp;
+      const ltpCls=row.chg1d>0?"up":row.chg1d<0?"dn":"neu";
+      const isExp=expandedRow===row.symbol;
+
+      html+=`<tr id="tr-${row.symbol}" class="${isExp?"expanded":""}" onclick="toggleDetail('${row.symbol}')">
+        <td><div class="sym">${row.symbol}</div><div class="sym-name">${row.name}</div></td>
+        <td><div class="ltp-val ${ltpCls}">${hasData?"₹"+ltp.toLocaleString("en-IN",{maximumFractionDigits:2}):"—"}</div><div style="margin-top:2px">${pillHtml(row.chg1d)}</div></td>
+        <td>${pillHtml(row.chg5m)}</td>
+        <td>${pillHtml(row.chg10m)}</td>
+        <td>${pillHtml(row.chg1h)}</td>
+        <td>${volHtml(row.vol,row.avgVol)}</td>
+        <td>${pillHtml(row.oi)}</td>
+        <td>${sigHtml(row.symbol)}</td>
+        <td><button class="act-btn" onclick="event.stopPropagation();toggleDetail('${row.symbol}')">Contracts ▾</button></td>
+      </tr>
+      <tr class="detail-tr" id="dtr-${row.symbol}">
+        <td colspan="9"><div class="detail-panel${isExp?" open":""}" id="dp-${row.symbol}"></div></td>
+      </tr>`;
+    });
+
+    html+=`</tbody></table></div>`;
+  }
+  main.innerHTML=html;
+}
+
+async function buildDetailAsync(inst){
+  const q=quotes[inst.symbol];
+  const spot=q?.ltp;
+  const seg=inst.isCom?"MCX Commodity":inst.cat==="Indices"?"Index F&O":"NSE F&O";
+  const dir=(q?.change||0)>=0?"CE":"PE";
+
+  let html=`<div style="margin-bottom:14px">
+    <div style="display:flex;gap:20px;font-size:12px;font-family:var(--font-mono);flex-wrap:wrap">
+      <span>Spot: <strong class="${(q?.change||0)>0?"up":"dn"}">${spot?"₹"+spot.toLocaleString("en-IN",{maximumFractionDigits:2}):"—"}</strong></span>
+      <span style="color:var(--text3)">Lot Size: ${inst.lotSize}</span>
+      <span style="color:var(--text3)">Segment: ${seg}</span>
+      <span style="color:var(--text3)">Security ID: ${inst.secId}</span>
+    </div>
+  </div>`;
+
+  // Show option chain if we have a spot price
+  if(!spot||!hasValidCreds()){
+    html+=`<div style="padding:20px;text-align:center;background:var(--bg3);border-radius:6px;margin-bottom:16px;color:var(--text3);font-size:12px">
+      ${!hasValidCreds()
+        ? "⚠ Enter Dhan credentials in Settings to load option chain data"
+        : "⏳ Start scanning to load live spot price first"}
+    </div>`;
+  } else {
+    // Fetch real option chain
+    html+=`<div class="contracts-title">📊 Option Chain <span style="font-size:10px;color:var(--text3);font-weight:400">Live from Dhan · Click contract to auto-fill order</span></div>`;
+    html+=`<div id="oc-${inst.symbol}" style="margin-bottom:16px"><div style="color:var(--text3);font-size:12px;padding:10px">Loading option chain…</div></div>`;
+
+    // Async load — fetch and inject without re-rendering the whole page
+    fetchOptionChain(inst).then(data=>{
+      const container=document.getElementById(`oc-${inst.symbol}`);
+      if(!container)return;
+      if(!data||!data.data){
+        container.innerHTML=`<div style="color:var(--text3);font-size:12px;padding:10px">
+          Could not load option chain. This may be because:<br>
+          • Token expired (generate a new one from Dhan app)<br>
+          • This instrument is not available for F&O on Dhan<br>
+          • Dhan Data API subscription may be required for option chain
+        </div>`;
+        return;
+      }
+      // Parse Dhan option chain response
+      // Shape: { data: { oc: [ { strike_price, call_options: {...}, put_options: {...} } ] } }
+      const oc=data.data.oc||data.data.optionChain||[];
+      if(!oc.length){container.innerHTML=`<div style="color:var(--text3);font-size:12px;padding:10px">No option chain data available</div>`;return;}
+
+      // Sort by strike, pick near ATM
+      oc.sort((a,b)=>a.strike_price-b.strike_price);
+      const atm=oc.reduce((prev,cur)=>Math.abs(cur.strike_price-spot)<Math.abs(prev.strike_price-spot)?cur:prev);
+      const atmIdx=oc.indexOf(atm);
+      const nearATM=oc.slice(Math.max(0,atmIdx-3),atmIdx+4);
+
+      let ocHtml=`<div class="contracts-grid">`;
+      nearATM.forEach(row=>{
+        const s=row.strike_price;
+        const ce=row.call_options||{};
+        const pe=row.put_options||{};
+        const ceLtp=ce.last_price||0;
+        const peLtp=pe.last_price||0;
+        const ceChg=ce.change||0;
+        const peChg=pe.change||0;
+        const ceOi=ce.oi||0;
+        const peOi=pe.oi||0;
+        const ceIv=ce.implied_volatility||0;
+        const peIv=pe.implied_volatility||0;
+        const exp=row.expiry_date||"";
+        const isATM=s===atm.strike_price;
+
+        ocHtml+=`
+        <div class="contract-card${isATM?" atm-card":""}" onclick="fillOrder('${inst.symbol}',${s},'${exp}','CE',${ceLtp})" style="${isATM?"border-color:var(--yellow)":""}">
+          <div class="cc-top"><span class="cc-strike">${s}${isATM?` <span style="font-size:9px;color:var(--yellow)">ATM</span>`:""}</span><span class="cc-type cc-ce">CE</span></div>
+          <div class="cc-row"><span class="cc-label">LTP</span><span class="cc-ltp up">₹${ceLtp.toFixed(2)}</span></div>
+          <div class="cc-row"><span class="cc-label">Chg</span><span class="cc-chg ${ceChg>=0?"up":"dn"}">${ceChg>=0?"+":""}${ceChg.toFixed(2)}%</span></div>
+          ${ceIv?`<div class="cc-row"><span class="cc-label">IV</span><span class="cc-val">${ceIv.toFixed(1)}%</span></div>`:""}
+          <div class="cc-row"><span class="cc-label">OI</span><span class="cc-val">${ceOi>1e5?(ceOi/1e5).toFixed(1)+"L":(ceOi/1000).toFixed(0)+"K"}</span></div>
+          <div style="font-size:10px;color:var(--text3);margin-top:4px">${exp}</div>
+        </div>
+        <div class="contract-card${isATM?" atm-card":""}" onclick="fillOrder('${inst.symbol}',${s},'${exp}','PE',${peLtp})" style="${isATM?"border-color:var(--yellow)":""}">
+          <div class="cc-top"><span class="cc-strike">${s}${isATM?` <span style="font-size:9px;color:var(--yellow)">ATM</span>`:""}</span><span class="cc-type cc-pe">PE</span></div>
+          <div class="cc-row"><span class="cc-label">LTP</span><span class="cc-ltp dn">₹${peLtp.toFixed(2)}</span></div>
+          <div class="cc-row"><span class="cc-label">Chg</span><span class="cc-chg ${peChg>=0?"up":"dn"}">${peChg>=0?"+":""}${peChg.toFixed(2)}%</span></div>
+          ${peIv?`<div class="cc-row"><span class="cc-label">IV</span><span class="cc-val">${peIv.toFixed(1)}%</span></div>`:""}
+          <div class="cc-row"><span class="cc-label">OI</span><span class="cc-val">${peOi>1e5?(peOi/1e5).toFixed(1)+"L":(peOi/1000).toFixed(0)+"K"}</span></div>
+          <div style="font-size:10px;color:var(--text3);margin-top:4px">${exp}</div>
+        </div>`;
+      });
+      ocHtml+=`</div>`;
+      container.innerHTML=ocHtml;
+    });
+  }
+
+  // Order form
+  html+=`<div style="border-top:1px solid var(--border2);padding-top:14px;margin-top:4px">
+    <div class="order-title">Place Order</div>
+    <div class="order-form">
+      <div class="ofield"><label>Type</label>
+        <div class="otype" id="otype-${inst.symbol}">
+          <button class="otype-btn${dir==="CE"?" ce":""}" onclick="setOtype('${inst.symbol}','CE')">CE</button>
+          <button class="otype-btn${dir==="PE"?" pe":""}" onclick="setOtype('${inst.symbol}','PE')">PE</button>
+        </div>
+      </div>
+      <div class="ofield"><label>Strike</label><input id="str-${inst.symbol}" placeholder="e.g. strike price"></div>
+      <div class="ofield"><label>Expiry</label><input id="exp-${inst.symbol}" placeholder="e.g. 27Mar25"></div>
+      <div class="ofield"><label>Security ID <span style="color:var(--yellow)">★</span></label><input id="sid-${inst.symbol}" placeholder="From scrip master" class="warn" style="width:160px" oninput="this.classList.remove('warn')"></div>
+      <div class="ofield"><label>Qty (shares)</label><input id="qty-${inst.symbol}" type="number" min="1" value="${inst.lotSize}" style="width:90px"></div>
+      <div style="display:flex;gap:6px">
+        <button class="obuy" onclick="placeOrder('${inst.symbol}','BUY')">BUY</button>
+        <button class="osell" onclick="placeOrder('${inst.symbol}','SELL')">SELL</button>
+      </div>
+    </div>
+    <div id="ost-${inst.symbol}" class="ostatus"></div>
+    <div class="secid-hint">★ Get Security ID: <span style="color:var(--blue)">images.dhan.co/api-data/api-scrip-master.csv</span> → search ${inst.symbol} + option type + strike + expiry</div>
+  </div>`;
+
+  return html;
+}
+
+async function toggleDetail(sym){
+  const wasOpen=expandedRow===sym;
+  expandedRow=wasOpen?null:sym;
+  if(!wasOpen){
+    // Pre-render the panel with a loading state, then fill it
+    renderAll();
+    const inst=INSTRUMENTS.find(i=>i.symbol===sym);
+    if(inst){
+      const panel=document.getElementById(`dp-${sym}`);
+      if(panel){
+        panel.innerHTML=`<div style="padding:16px;color:var(--text3);font-size:12px">Loading…</div>`;
+        panel.classList.add("open");
+        const html=await buildDetailAsync(inst);
+        if(panel&&expandedRow===sym)panel.innerHTML=html;
+      }
+    }
+    setTimeout(()=>{
+      const el=document.getElementById(`tr-${sym}`);
+      if(el)el.scrollIntoView({behavior:"smooth",block:"nearest"});
+    },50);
+  } else {
+    renderAll();
+  }
+}
+
+function fillOrder(sym,strike,exp,type,ltp){
+  document.getElementById(`str-${sym}`).value=strike;
+  document.getElementById(`exp-${sym}`).value=exp;
+  setOtype(sym,type);
+}
+
+function setOtype(sym,type){
+  const wrap=document.getElementById(`otype-${sym}`);
+  if(!wrap)return;
+  wrap.querySelectorAll(".otype-btn").forEach(b=>b.className="otype-btn");
+  const btns=wrap.querySelectorAll(".otype-btn");
+  if(type==="CE"&&btns[0])btns[0].className="otype-btn ce";
+  if(type==="PE"&&btns[1])btns[1].className="otype-btn pe";
+}
+
+async function placeOrder(sym,txType){
+  const secId=document.getElementById(`sid-${sym}`)?.value.trim();
+  const qty=document.getElementById(`qty-${sym}`)?.value;
+  const st=document.getElementById(`ost-${sym}`);
+
+  // Load creds from localStorage
+  const clientId=localStorage.getItem("dhan_client_id")||"";
+  const token=localStorage.getItem("dhan_access_token")||"";
+
+  if(!clientId||!token){
+    st.className="ostatus err";
+    st.textContent="⚠ Enter & save Dhan credentials in Settings first";
+    document.getElementById("cfg-panel").classList.add("open");
+    return;
+  }
+  if(!secId){st.className="ostatus err";st.textContent="⚠ Enter Security ID first";return;}
+
+  st.className="ostatus loading";st.textContent="⟳ Placing order…";
+  try{
+    const res=await fetch("/api/order",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        clientId, token,
+        transactionType:txType,exchangeSegment:"NSE_FNO",productType:"INTRADAY",
+        orderType:"MARKET",validity:"DAY",securityId:secId,
+        quantity:Number(qty),price:0,triggerPrice:0,afterMarketOrder:false
+      })});
+    const data=await res.json();
+    if(data.orderId){st.className="ostatus ok";st.textContent=`✓ ${txType} placed! ID: ${data.orderId}`;}
+    else{st.className="ostatus err";st.textContent=`✗ ${data.errorMessage||data.error||"Order failed"}`;}
+  }catch(e){st.className="ostatus err";st.textContent=`✗ ${e.message}`;}
+}
+
+// ================================================================
+// ALERTS PANEL
+// ================================================================
+function updateAlertPanel(){
+  const cnt=document.getElementById("ap-count");
+  const body=document.getElementById("ap-body");
+  cnt.textContent=alerts.length;
+  if(!alerts.length){body.innerHTML=`<div class="ap-empty">No signals yet</div>`;return;}
+  const sigCls={SPIKE:"sig-spike",SURGE:"sig-surge",BREAKOUT:"sig-breakout",OI:"sig-oi"};
+  body.innerHTML=alerts.slice(0,200).map(a=>`
+    <div class="ap-item">
+      <span class="ap-sym">${a.symbol}</span>
+      <span class="sig-badge ${sigCls[a.sig.type]}">${a.sig.label}</span>
+      <span class="ap-detail">${a.sig.detail}</span>
+      <span class="ap-chg ${a.change>=0?"up":"dn"}">${a.change>=0?"+":""}${a.change.toFixed(2)}%</span>
+      <span class="ap-time">${a.ts.toLocaleTimeString("en-IN",{hour12:false,hour:"2-digit",minute:"2-digit",second:"2-digit"})}</span>
+    </div>`).join("");
+}
+
+function toggleAlerts(){
+  alertsOpen=!alertsOpen;
+  const panel=document.getElementById("alerts-panel");
+  const tog=document.getElementById("ap-toggle");
+  panel.className=alertsOpen?"expanded":"collapsed";
+  tog.textContent=alertsOpen?"▼ collapse":"▲ expand";
+  // Adjust main bottom padding
+  document.getElementById("main").style.paddingBottom=alertsOpen?"230px":"60px";
+}
+
+// ================================================================
+// CONTROLS
+// ================================================================
+function setCat(c){currentCat=c;buildCatTabs();renderAll();}
+
+function setSort(k){
+  if(sortKey===k)sortDir*=-1;
+  else{sortKey=k;sortDir=-1;}
+  // Update sort buttons
+  document.querySelectorAll(".sbtn").forEach(b=>b.classList.remove("active"));
+  const sb=document.getElementById(`sb-${k}`);if(sb)sb.classList.add("active");
+  // Update arrows on sort buttons
+  const arrowKeys=["chg1d","chg5m","chg10m","chg1h","vol","oi"];
+  arrowKeys.forEach(ak=>{
+    const ar=document.getElementById(`ar-${ak}`);
+    if(ar)ar.textContent=ak===k?(sortDir===-1?"↓":"↑"):"↓";
+  });
+  renderAll();
+}
+
+function setMode(m){
+  // No-op - kept for compatibility, only live mode exists now
+  updateTopbar();
+}
+
+function saveDhanCreds(){
+  const cid=document.getElementById("cfg-cid").value.trim();
+  const tok=document.getElementById("cfg-tok").value.trim();
+  if(!cid||!tok){
+    document.getElementById("creds-status").textContent="⚠ Both Client ID and Access Token are required";
+    document.getElementById("creds-status").style.color="var(--red)";
+    return;
+  }
+  localStorage.setItem("dhan_client_id",cid);
+  localStorage.setItem("dhan_access_token",tok);
+  const st=document.getElementById("creds-status");
+  st.style.color="var(--green)";
+  st.textContent=`✓ Saved! Client ID: ${cid.substring(0,6)}… Token: ${tok.substring(0,12)}…`;
+}
+
+function clearDhanCreds(){
+  localStorage.removeItem("dhan_client_id");
+  localStorage.removeItem("dhan_access_token");
+  document.getElementById("cfg-cid").value="";
+  document.getElementById("cfg-tok").value="";
+  const st=document.getElementById("creds-status");
+  st.style.color="var(--text3)";
+  st.textContent="Credentials cleared";
+}
+
+async function testConnection(){
+  const {clientId,token}=getCreds();
+  const st=document.getElementById("creds-status");
+  if(!clientId||!token){
+    st.style.color="var(--red)";
+    st.textContent="⚠ No credentials saved — enter and save first";
+    return;
+  }
+  st.style.color="var(--text3)";
+  st.textContent="⟳ Testing connection…";
+  try{
+    const res=await fetch("/api/profile",{
+      headers:{"access-token":token,"client-id":clientId}
+    });
+    const data=await res.json();
+    if(data.dhanClientId){
+      st.style.color="var(--green)";
+      st.textContent=`✓ Connected! Client: ${data.dhanClientId} · Token valid till: ${data.tokenValidity} · Segments: ${data.activeSegment}`;
+    } else {
+      st.style.color="var(--red)";
+      st.textContent=`✗ ${data.errorMessage||data.error||JSON.stringify(data)}`;
+    }
+  }catch(e){
+    st.style.color="var(--red)";
+    st.textContent=`✗ Network error: ${e.message}`;
+  }
+}
+  const cid=localStorage.getItem("dhan_client_id")||"";
+  const tok=localStorage.getItem("dhan_access_token")||"";
+  if(cid)document.getElementById("cfg-cid").value=cid;
+  if(tok)document.getElementById("cfg-tok").value=tok;
+  if(cid&&tok){
+    const st=document.getElementById("creds-status");
+    st.style.color="var(--green)";
+    st.textContent=`✓ Credentials loaded — Client ID: ${cid.substring(0,6)}…`;
+  }
+}
+
+function toggleLive(){
+  isLive=!isLive;
+  const btn=document.getElementById("start-btn");
+  const dot=document.getElementById("live-dot");
+  if(isLive){
+    btn.textContent="■ Stop";btn.className="tbtn stop";
+    dot.classList.add("on");
+    runScan();
+    scanTimer=setInterval(runScan,INTERVAL);
+    cdTimer=setInterval(()=>{countdown=Math.max(0,countdown-1);updateTopbar();},1000);
+  }else{
+    btn.textContent="▶ Start";btn.className="tbtn start";
+    dot.classList.remove("on");
+    clearInterval(scanTimer);clearInterval(cdTimer);
+    updateTopbar();
+  }
+}
+
+function toggleCfg(){document.getElementById("cfg-panel").classList.toggle("open");}
+
+function enableNotif(){
+  if(!("Notification"in window))return;
+  Notification.requestPermission().then(p=>{
+    if(p==="granted"){
+      notifOn=true;
+      document.getElementById("notif-chk").checked=true;
+    }
+  });
+}
+
+// ================================================================
+// INIT
+// ================================================================
+buildCatTabs();
+renderAll();
+loadSavedCreds();
+</script>
+</body>
+</html>
